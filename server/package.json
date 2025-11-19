@@ -8,7 +8,7 @@
     "postinstall": "npm rebuild better-sqlite3 --build-from-source"
   },
   "dependencies": {
-    "better-sqlite3": "^8.2.0",
+    "sqlite3": "^5.1.6",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
