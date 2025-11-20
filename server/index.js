@@ -1,4 +1,3 @@
-// server/index.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -7,8 +6,6 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 
 const app = express();
-
-// ---------- CLIENT URL ----------
 const CLIENT_URL = "https://skycallconnect.onrender.com";
 
 // ---------- CORS ----------
@@ -19,7 +16,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ---------- HTTP + SOCKET.IO ----------
+// ---------- HTTP + Socket.IO ----------
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -54,56 +51,47 @@ db.run(`
   )
 `);
 
-// ---------- AUTH MIDDLEWARE ----------
+// ---------- AUTH ----------
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Нет токена" });
-
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET || "SECRET");
     req.user = user;
     next();
-  } catch (err) {
+  } catch {
     return res.status(403).json({ error: "Неверный токен" });
   }
 }
 
 // ---------- ROUTES ----------
-
-// Регистрация
 app.post("/api/register", (req, res) => {
   const { username, password } = req.body;
-
   db.run(
     "INSERT INTO users (username, password) VALUES (?, ?)",
     [username, password],
     function(err) {
       if (err) return res.status(400).json({ error: "Пользователь уже существует" });
-
       const token = jwt.sign({ id: this.lastID }, process.env.JWT_SECRET || "SECRET");
       res.json({ token });
     }
   );
 });
 
-// Логин
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
-
   db.get(
     "SELECT * FROM users WHERE username = ? AND password = ?",
     [username, password],
     (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!row) return res.status(400).json({ error: "Неверные данные" });
-
       const token = jwt.sign({ id: row.id }, process.env.JWT_SECRET || "SECRET");
       res.json({ token });
     }
   );
 });
 
-// Проверка токена
 app.get("/api/me", authMiddleware, (req, res) => {
   db.get(
     "SELECT id, username FROM users WHERE id = ?",
