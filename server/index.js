@@ -27,6 +27,13 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     allowedHeaders: ["authorization"],
     credentials: true
+  },
+  transportOptions: {
+    polling: {
+      extraHeaders: {
+        "Access-Control-Allow-Origin": CLIENT_URL
+      }
+    }
   }
 });
 
