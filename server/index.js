@@ -8,14 +8,15 @@ const cors = require("cors");
 
 const app = express();
 
-// ---------- CORS ----------
+// ---------- CLIENT URL ----------
 const CLIENT_URL = "https://skycallconnect.onrender.com";
 
+// ---------- CORS ----------
 app.use(cors({
   origin: CLIENT_URL,
+  methods: ["GET", "POST", "OPTIONS"],
   credentials: true
 }));
-
 app.use(express.json());
 
 // ---------- HTTP + SOCKET.IO ----------
@@ -51,7 +52,7 @@ db.run(`
   )
 `);
 
-// ---------- AUTH HELPERS ----------
+// ---------- AUTH MIDDLEWARE ----------
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Нет токена" });
@@ -98,9 +99,10 @@ app.post("/api/login", (req, res) => {
   );
 });
 
-// Проверка токена для клиента
+// Проверка токена
 app.get("/api/me", authMiddleware, (req, res) => {
   db.get("SELECT id, username FROM users WHERE id = ?", [req.user.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: "Пользователь не найден" });
     res.json(row);
   });
