@@ -17,7 +17,7 @@ app.use(cors({
 }));
 
 // ---------- JSON Body Parser ----------
-app.use(express.json()); // ✅ Обязательно, чтобы req.body работал
+app.use(express.json());
 
 // ---------- HTTP + SOCKET.IO ----------
 const server = http.createServer(app);
@@ -129,6 +129,7 @@ app.get("/api/search-users", authMiddleware, (req, res) => {
 io.on("connection", (socket) => {
   console.log("Пользователь подключился:", socket.id);
 
+  // Звонок
   socket.on("call-user", (data) => {
     io.to(data.to).emit("incoming-call", { from: socket.id });
   });
@@ -139,6 +140,19 @@ io.on("connection", (socket) => {
 
   socket.on("reject-call", (data) => {
     io.to(data.to).emit("call-rejected", { from: socket.id });
+  });
+
+  // Включение/выключение микрофона/камеры
+  socket.on("toggle-mic", (data) => {
+    io.to(data.to).emit("mic-toggled", { from: socket.id, enabled: data.enabled });
+  });
+
+  socket.on("toggle-camera", (data) => {
+    io.to(data.to).emit("camera-toggled", { from: socket.id, enabled: data.enabled });
+  });
+
+  socket.on("end-call", (data) => {
+    io.to(data.to).emit("call-ended", { from: socket.id });
   });
 
   socket.on("disconnect", () => {
