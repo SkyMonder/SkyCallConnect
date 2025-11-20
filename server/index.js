@@ -38,7 +38,7 @@ const io = new Server(server, {
 });
 
 // ---------- DATABASE ----------
-const db = new sqlite3.Database("data.db", (err) => {
+const db = new sqlite3.Database("db.sqlite", (err) => {
   if (err) console.error("Ошибка открытия БД:", err.message);
   else console.log("База данных открыта!");
 });
@@ -65,6 +65,7 @@ function authMiddleware(req, res, next) {
 }
 
 // ---------- ROUTES ----------
+
 app.post("/api/register", (req, res) => {
   const { username, password } = req.body;
   db.run(
@@ -108,21 +109,10 @@ app.get("/api/me", authMiddleware, (req, res) => {
 io.on("connection", (socket) => {
   console.log("Пользователь подключился:", socket.id);
 
-  socket.on("call-user", (data) => {
-    io.to(data.to).emit("incoming-call", { from: socket.id });
-  });
-
-  socket.on("accept-call", (data) => {
-    io.to(data.to).emit("call-accepted", { from: socket.id });
-  });
-
-  socket.on("reject-call", (data) => {
-    io.to(data.to).emit("call-rejected", { from: socket.id });
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Пользователь отключился:", socket.id);
-  });
+  socket.on("call-user", (data) => io.to(data.to).emit("incoming-call", { from: socket.id }));
+  socket.on("accept-call", (data) => io.to(data.to).emit("call-accepted", { from: socket.id }));
+  socket.on("reject-call", (data) => io.to(data.to).emit("call-rejected", { from: socket.id }));
+  socket.on("disconnect", () => console.log("Пользователь отключился:", socket.id));
 });
 
 // ---------- START SERVER ----------
