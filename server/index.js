@@ -24,15 +24,20 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: [
+      "https://skycallconnect.onrender.com",
+      "http://localhost:5173" // если локально тестируешь
+    ],
     methods: ["GET", "POST"],
     allowedHeaders: ["authorization"],
     credentials: true
   },
+  transports: ["websocket", "polling"], // обязательно оба
   transportOptions: {
     polling: {
       extraHeaders: {
-        "Access-Control-Allow-Origin": CLIENT_URL
+        "Access-Control-Allow-Origin": "https://skycallconnect.onrender.com",
+        "Access-Control-Allow-Credentials": "true"
       }
     }
   }
