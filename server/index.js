@@ -1,3 +1,4 @@
+// server/index.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -14,11 +15,12 @@ app.use(cors({
   methods: ["GET", "POST", "OPTIONS"],
   credentials: true
 }));
-app.use(express.json());
 
-// ---------- HTTP + Socket.IO ----------
+// ---------- JSON Body Parser ----------
+app.use(express.json()); // ✅ Обязательно, чтобы req.body работал
+
+// ---------- HTTP + SOCKET.IO ----------
 const server = http.createServer(app);
-
 const io = new Server(server, {
   cors: {
     origin: CLIENT_URL,
@@ -51,7 +53,7 @@ db.run(`
   )
 `);
 
-// ---------- AUTH ----------
+// ---------- AUTH MIDDLEWARE ----------
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Нет токена" });
@@ -59,19 +61,23 @@ function authMiddleware(req, res, next) {
     const user = jwt.verify(token, process.env.JWT_SECRET || "SECRET");
     req.user = user;
     next();
-  } catch {
+  } catch (err) {
     return res.status(403).json({ error: "Неверный токен" });
   }
 }
 
 // ---------- ROUTES ----------
 
+// Регистрация
 app.post("/api/register", (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password)
+    return res.status(400).json({ error: "Не указаны username или password" });
+
   db.run(
     "INSERT INTO users (username, password) VALUES (?, ?)",
     [username, password],
-    function(err) {
+    function (err) {
       if (err) return res.status(400).json({ error: "Пользователь уже существует" });
       const token = jwt.sign({ id: this.lastID }, process.env.JWT_SECRET || "SECRET");
       res.json({ token });
@@ -79,8 +85,12 @@ app.post("/api/register", (req, res) => {
   );
 });
 
+// Логин
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password)
+    return res.status(400).json({ error: "Не указаны username или password" });
+
   db.get(
     "SELECT * FROM users WHERE username = ? AND password = ?",
     [username, password],
@@ -93,19 +103,16 @@ app.post("/api/login", (req, res) => {
   );
 });
 
+// Проверка токена
 app.get("/api/me", authMiddleware, (req, res) => {
-  db.get(
-    "SELECT id, username FROM users WHERE id = ?",
-    [req.user.id],
-    (err, row) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!row) return res.status(404).json({ error: "Пользователь не найден" });
-      res.json(row);
-    }
-  );
+  db.get("SELECT id, username FROM users WHERE id = ?", [req.user.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: "Пользователь не найден" });
+    res.json(row);
+  });
 });
 
-// Поиск пользователей по имени
+// Поиск пользователей
 app.get("/api/search-users", authMiddleware, (req, res) => {
   const query = req.query.query || "";
   db.all(
@@ -122,10 +129,21 @@ app.get("/api/search-users", authMiddleware, (req, res) => {
 io.on("connection", (socket) => {
   console.log("Пользователь подключился:", socket.id);
 
-  socket.on("call-user", (data) => io.to(data.to).emit("incoming-call", { from: socket.id }));
-  socket.on("accept-call", (data) => io.to(data.to).emit("call-accepted", { from: socket.id }));
-  socket.on("reject-call", (data) => io.to(data.to).emit("call-rejected", { from: socket.id }));
-  socket.on("disconnect", () => console.log("Пользователь отключился:", socket.id));
+  socket.on("call-user", (data) => {
+    io.to(data.to).emit("incoming-call", { from: socket.id });
+  });
+
+  socket.on("accept-call", (data) => {
+    io.to(data.to).emit("call-accepted", { from: socket.id });
+  });
+
+  socket.on("reject-call", (data) => {
+    io.to(data.to).emit("call-rejected", { from: socket.id });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Пользователь отключился:", socket.id);
+  });
 });
 
 // ---------- START SERVER ----------
