@@ -24,19 +24,16 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      "https://skycallconnect.onrender.com",
-      "http://localhost:5173" // если локально тестируешь
-    ],
+    origin: CLIENT_URL,
     methods: ["GET", "POST"],
     allowedHeaders: ["authorization"],
     credentials: true
   },
-  transports: ["websocket", "polling"], // обязательно оба
+  transports: ["websocket", "polling"],
   transportOptions: {
     polling: {
       extraHeaders: {
-        "Access-Control-Allow-Origin": "https://skycallconnect.onrender.com",
+        "Access-Control-Allow-Origin": CLIENT_URL,
         "Access-Control-Allow-Credentials": "true"
       }
     }
@@ -77,9 +74,10 @@ function authMiddleware(req, res, next) {
 app.post("/api/register", (req, res) => {
   const { username, password } = req.body;
 
-  db.run("INSERT INTO users (username, password) VALUES (?, ?)",
+  db.run(
+    "INSERT INTO users (username, password) VALUES (?, ?)",
     [username, password],
-    function (err) {
+    function(err) {
       if (err) return res.status(400).json({ error: "Пользователь уже существует" });
 
       const token = jwt.sign({ id: this.lastID }, process.env.JWT_SECRET || "SECRET");
@@ -92,7 +90,8 @@ app.post("/api/register", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
-  db.get("SELECT * FROM users WHERE username = ? AND password = ?",
+  db.get(
+    "SELECT * FROM users WHERE username = ? AND password = ?",
     [username, password],
     (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -106,11 +105,15 @@ app.post("/api/login", (req, res) => {
 
 // Проверка токена
 app.get("/api/me", authMiddleware, (req, res) => {
-  db.get("SELECT id, username FROM users WHERE id = ?", [req.user.id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: "Пользователь не найден" });
-    res.json(row);
-  });
+  db.get(
+    "SELECT id, username FROM users WHERE id = ?",
+    [req.user.id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: "Пользователь не найден" });
+      res.json(row);
+    }
+  );
 });
 
 // ---------- SOCKET.IO ----------
@@ -136,7 +139,4 @@ io.on("connection", (socket) => {
 
 // ---------- START SERVER ----------
 const PORT = process.env.PORT || 4000;
-
-server.listen(PORT, () => {
-  console.log("Сервер запущен на порту", PORT);
-});
+server.listen(PORT, () => console.log("Сервер запущен на порту", PORT));
