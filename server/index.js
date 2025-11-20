@@ -105,6 +105,19 @@ app.get("/api/me", authMiddleware, (req, res) => {
   );
 });
 
+// Поиск пользователей по имени
+app.get("/api/search-users", authMiddleware, (req, res) => {
+  const query = req.query.query || "";
+  db.all(
+    "SELECT id, username FROM users WHERE username LIKE ? AND id != ?",
+    [`%${query}%`, req.user.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
 // ---------- SOCKET.IO ----------
 io.on("connection", (socket) => {
   console.log("Пользователь подключился:", socket.id);
